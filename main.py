@@ -34,8 +34,8 @@ if not _SEC.get("mcp_token") or not _SEC.get("link_key"):
     _SEC_FILE.write_text(json.dumps(_SEC), encoding="utf-8")
 MCP_TOKEN = os.environ.get("MCP_TOKEN") or _SEC["mcp_token"]
 LINK_KEY = os.environ.get("APP_KEY") or _SEC["link_key"]
-WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
-WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "2"))
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base")
+WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "1"))
 SECRET = (os.environ.get("SESSION_SECRET") or hashlib.sha256(("wx:" + LINK_KEY + MCP_TOKEN).encode()).hexdigest()).encode()
 CHUNK = 600 * 1024  # bytes de audio por parte entregada al artifact
 BASE = Path(__file__).parent
@@ -121,10 +121,16 @@ def worker():
             continue
         try:
             with LOCK:
+                g["intentos"] = int(g.get("intentos", 0)) + 1
+                if g["intentos"] > 2:
+                    g["estado_transcripcion"] = "error"
+                    g["error"] = "No se pudo transcribir (memoria insuficiente en el servidor)."
+                    save_db()
+                    continue
                 g["estado_transcripcion"] = "procesando"
                 save_db()
             t0 = time.time()
-            segments, info = get_model().transcribe(str(audio_path(g)), language="es", vad_filter=True, beam_size=5)
+            segments, info = get_model().transcribe(str(audio_path(g)), language="es", vad_filter=True, beam_size=1)
             texto = " ".join(s.text.strip() for s in segments).strip()
             with LOCK:
                 g["transcripcion"] = texto
