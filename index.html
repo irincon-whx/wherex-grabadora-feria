@@ -132,7 +132,6 @@ function registroHtml(emp){
     <div class="grid2">${inp('nombre', 'Nombre')}${inp('cargo', 'Cargo')}${inp('email', 'Correo', 'email')}${inp('telefono', 'Teléfono', 'tel')}</div>
     <div class="meta" style="margin-top:12px">Interés</div>
     <div class="chips">${INTERES.map(([v, l]) => `<button type="button" class="chip ${d.interes === v ? 'on' : ''}" data-int="${v}">${l}</button>`).join('')}</div>
-    <textarea data-keep="1" data-reg="proximo" placeholder="Próximos pasos u otros">${esc(d.proximo || '')}</textarea>
     <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="regsave">Guardar</button><span class="meta">Se guarda en la reunión del artifact y en la ficha de la empresa.</span></div>
     ${cola.length || guardados.length ? `<div style="margin-top:10px">${cola.map(r => item(r, `<span class="pill info">${S.online ? 'Enviando…' : 'Sin señal · se envía después'}</span>`)).join('')}${guardados.map(r => item(r, r.importado ? '<span class="pill ok">Guardado en la reunión</span>' : '<span class="pill info">Enviado a la reunión</span>')).join('')}</div>` : ''}
   </div>`;
@@ -358,7 +357,7 @@ function bind(){
   const rs = $('#regsave'); if(rs) rs.onclick = async () => {
     const d = S.reg[S.empresa] || {};
     const r = { id:newId(), empresa_id:S.empresa, nombre:(d.nombre || '').trim(), cargo:(d.cargo || '').trim(), email:(d.email || '').trim(), telefono:(d.telefono || '').trim(), interes:d.interes || '', proximo:(d.proximo || '').trim(), creado_en:new Date().toISOString() };
-    if(!r.nombre && !r.cargo && !r.email && !r.telefono && !r.proximo && !r.interes){ toast('Completa al menos un campo.'); return; }
+    if(!r.nombre && !r.cargo && !r.email && !r.telefono && !r.interes){ toast('Completa al menos un campo.'); return; }
     S.regCola.push(r); saveRegCola(); S.reg[S.empresa] = {};
     render.force = true; render(); toast('Registro guardado.');
     subirRegistros();
