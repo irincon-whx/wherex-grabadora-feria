@@ -172,7 +172,7 @@ def guardar_audio(gid, empresa_id, empresa, mime, data: bytes, origen, creado_en
 def resumen(g, con_texto=True):
     partes = max(1, -(-int(g.get("bytes", 0)) // CHUNK))
     r = {k: g.get(k) for k in ("id", "empresa_id", "empresa", "creado_en", "duracion_s", "mime", "bytes", "nota",
-                               "estado_transcripcion", "origen", "importada", "error")}
+                               "estado_transcripcion", "origen", "importada", "error", "enviar")}
     r["partes"] = partes
     if con_texto:
         r["transcripcion"] = g.get("transcripcion", "")
@@ -200,7 +200,12 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 ATTEMPTS = {}
 
 
+REQUIRE_KEY = os.environ.get("REQUIRE_KEY", "") not in ("", "0", "no")  # por defecto: abierto a quien tenga el enlace
+
+
 def require_auth(req: Request):
+    if not REQUIRE_KEY:
+        return
     if not verify(req.cookies.get("wx_auth")):
         raise HTTPException(401, "Sesión vencida. Ingresa la clave.")
 
@@ -291,6 +296,19 @@ async def editar(gid: str, req: Request):
         return resumen(g)
 
 
+@app.post("/api/grabaciones/{gid}/guardar")
+def guardar_en_reunion(gid: str, req: Request):
+    require_auth(req)
+    with LOCK:
+        g = DB["grabaciones"].get(gid)
+        if not g:
+            raise HTTPException(404, "No existe.")
+        g["enviar"] = True
+        g["enviar_en"] = now_iso()
+        save_db()
+        return resumen(g)
+
+
 @app.delete("/api/grabaciones/{gid}")
 def borrar(gid: str, req: Request):
     require_auth(req)
@@ -333,7 +351,7 @@ def bajar_transcripcion(gid: str, req: Request):
 # ---------------- Conector MCP para el artifact ----------------
 TOOLS = [
     {"name": "listar_grabaciones",
-     "description": "Lista las grabaciones de la feria (por empresa) con su transcripción. Por defecto solo las que el artifact aún no importa.",
+     "description": "Lista las grabaciones de la feria (por empresa) con su transcripción. Por defecto solo las que la usuaria marcó para guardar y el artifact aún no importa.",
      "inputSchema": {"type": "object", "properties": {
          "pendientes": {"type": "boolean", "description": "true: solo no importadas (por defecto)."},
          "empresa_id": {"type": "string"}}},
@@ -377,6 +395,8 @@ def call_tool(name, args, host=""):
             for g in sorted(DB["grabaciones"].values(), key=lambda x: x["creado_en"]):
                 if eid and g["empresa_id"] != eid:
                     continue
+                if pend and not g.get("enviar"):
+                    continue
                 if pend and g.get("importada") and (g.get("transcripcion_entregada") or g.get("estado_transcripcion") not in ("listo", "error")):
                     continue
                 out.append(resumen(g))
@@ -415,6 +435,7 @@ def call_tool(name, args, host=""):
         g = guardar_audio(gid, eid, args.get("empresa", ""), args.get("mime", "audio/mp4"), data, "artifact", args.get("creado_en"))
         with LOCK:
             g["importada"] = True  # el artifact ya tiene el audio; solo falta entregar el texto
+            g["enviar"] = True
             g["transcripcion_entregada"] = False
             save_db()
         return tool_result({"ok": True, "id": gid, "estado_transcripcion": g["estado_transcripcion"]})
@@ -467,7 +488,7 @@ def mcp_delete(token: str):
 
 ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#191D38"/><circle cx="32" cy="32" r="16" fill="#E0515A"/></svg>'
 MANIFEST = '{"name":"Grabadora de feria · Wherex","short_name":"Grabadora","start_url":"/","display":"standalone","background_color":"#191D38","theme_color":"#191D38","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}'
-SW_JS = "// Guarda la página para que abra sin señal; los datos van por la cola local de la app.\nconst C = 'wx-grab-v1';\nself.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['/', '/icon.svg', '/manifest.webmanifest']))); self.skipWaiting(); });\nself.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });\nself.addEventListener('fetch', e => {\n  const u = new URL(e.request.url);\n  if (e.request.method !== 'GET' || u.pathname.startsWith('/api/') || u.pathname.startsWith('/mcp/')) return;\n  e.respondWith(fetch(e.request).then(r => { const cp = r.clone(); caches.open(C).then(c => c.put(e.request, cp)); return r; }).catch(() => caches.match(e.request).then(r => r || caches.match('/'))));\n});\n"
+SW_JS = "// Permite abrir la app sin señal. Las páginas se piden siempre a la red primero.\nconst C = 'wx-grab-v2';\nself.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['/', '/icon.svg', '/manifest.webmanifest'])).catch(() => {})); self.skipWaiting(); });\nself.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())); });\nself.addEventListener('fetch', e => {\n  const u = new URL(e.request.url);\n  if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/') || u.pathname.startsWith('/mcp/')) return;\n  if (e.request.mode === 'navigate') { e.respondWith(fetch(e.request).catch(() => caches.match('/'))); return; }\n  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));\n});\n"
 
 
 @app.get("/icon.svg")
