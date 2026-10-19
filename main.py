@@ -24,7 +24,7 @@ APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 MCP_TOKEN = os.environ.get("MCP_TOKEN", "")
 DATA_DIR = Path(os.environ.get("DATA_DIR") or ("/data" if Path("/data").exists() else "./storage"))
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
-WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "4"))
+WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "2"))
 SECRET = (os.environ.get("SESSION_SECRET") or hashlib.sha256(("wx:" + APP_PASSWORD + MCP_TOKEN).encode()).hexdigest()).encode()
 CHUNK = 600 * 1024  # bytes de audio por parte entregada al artifact
 BASE = Path(__file__).parent
@@ -87,7 +87,7 @@ def get_model():
         from faster_whisper import WhisperModel
         MODEL["estado"] = "cargando"
         MODEL["m"] = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8",
-                                  download_root=str(DATA_DIR / "models"), cpu_threads=WHISPER_THREADS)
+                                  download_root=os.environ.get("WHISPER_DIR", "/srv/models"), cpu_threads=WHISPER_THREADS)
         MODEL["estado"] = "listo"
     return MODEL["m"]
 
