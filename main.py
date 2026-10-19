@@ -347,6 +347,10 @@ TOOLS = [
      "description": "Marca una grabación como ya importada al artifact.",
      "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}},
      "annotations": {"readOnlyHint": False, "destructiveHint": False}},
+    {"name": "enlace_grabadora",
+     "description": "Entrega el enlace personal (con llave) para abrir la grabadora web sin clave.",
+     "inputSchema": {"type": "object", "properties": {}},
+     "annotations": {"readOnlyHint": True}},
     {"name": "transcribir_audio",
      "description": "Recibe un audio subido en el artifact para transcribirlo; la transcripción se entrega luego con listar_grabaciones.",
      "inputSchema": {"type": "object", "required": ["id", "empresa_id", "mime", "base64Content"], "properties": {
@@ -360,8 +364,11 @@ def tool_result(obj, is_error=False):
     return {"content": [{"type": "text", "text": json.dumps(obj, ensure_ascii=False)}], "structuredContent": obj, "isError": is_error}
 
 
-def call_tool(name, args):
+def call_tool(name, args, host=""):
     args = args or {}
+    if name == "enlace_grabadora":
+        dom = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or host
+        return tool_result({"url": f"https://{dom}/?k={LINK_KEY}", "base": f"https://{dom}", "k": LINK_KEY})
     if name == "listar_grabaciones":
         pend = args.get("pendientes", True)
         eid = args.get("empresa_id")
@@ -436,7 +443,7 @@ async def mcp(token: str, req: Request):
             elif method == "tools/list":
                 res = {"tools": TOOLS}
             elif method == "tools/call":
-                res = call_tool(params.get("name"), params.get("arguments"))
+                res = call_tool(params.get("name"), params.get("arguments"), req.headers.get("host", ""))
             else:
                 replies.append({"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": "Método no soportado"}})
                 continue
