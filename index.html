@@ -21,10 +21,293 @@ button,select,input,textarea{font-family:inherit}
 h1{font-size:20px;color:var(--t);margin:2px 0 0;font-weight:700}
 .top{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px}
 .net{margin-left:auto;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;background:#1F3A2E;color:var(--ok);white-space:nowrap}
+.net.pend{background:#1A3A4A;color:#7FD3F0}.net.off{background:#4A2328;color:#FF9AA0}<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#191D38">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Grabadora">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Grabadora de feria · Wherex</title>
+<style>
+:root{--bg:#191D38;--card:#232746;--line:#33395E;--t:#FFFFFF;--b:#D2E3F1;--m:#8FA6BE;--a:#00A0D0;--g:#00B89A;--r:#E0515A;--ok:#7BC47A}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--b);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button,select,input,textarea{font-family:inherit}
+.wrap{max-width:620px;margin:0 auto;padding:18px 16px 60px}
+.k{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--g);margin:0}
+h1{font-size:20px;color:var(--t);margin:2px 0 0;font-weight:700}
+.top{display:flex;align-items:flex-end;gap:10px;margin-bottom:16px}
+.net{margin-left:auto;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;background:#1F3A2E;color:var(--ok);white-space:nowrap}
 .net.pend{background:#1A3A4A;color:#7FD3F0}.net.off{background:#4A2328;color:#FF9AA0}
 .card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:14px}
 label.l{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--m);margin:0 0 6px}
 select,input[type=text],input[type=password],textarea{width:100%;background:var(--bg);color:var(--t);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
+textarea{min-height:80px;resize:vertical}
+.rec{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 4px}
+.mic{width:132px;height:132px;border-radius:50%;border:none;background:var(--r);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 0 0 10px rgba(224,81,90,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .1s}
+.mic:active{transform:scale(.97)}
+.mic.on{background:#fff;color:var(--r);box-shadow:0 0 0 10px rgba(255,255,255,.12)}
+.mic .sq{width:30px;height:30px;border-radius:6px;background:var(--r)}
+.mic .dot{width:30px;height:30px;border-radius:50%;background:#fff}
+.timer{font-size:34px;font-weight:700;color:var(--t);font-variant-numeric:tabular-nums}
+canvas{width:100%;height:70px;display:block}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
+.btn{border:none;border-radius:999px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;background:var(--a);color:#fff;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--b)}
+.btn.small{padding:8px 13px;font-size:13px}
+.btn:disabled{opacity:.45}
+.msg{font-size:13px;color:var(--m);text-align:center}.msg.warn{color:#FF9AA0}
+.item{border-top:1px solid var(--line);padding:12px 0}
+.item:first-child{border-top:none}
+.ih{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ih .nm{font-weight:700;color:var(--t);font-size:14px;flex:1;min-width:140px}
+.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;background:#2E3458;color:var(--m);white-space:nowrap}
+.pill.ok{background:#1F3A2E;color:var(--ok)}.pill.info{background:#1A3A4A;color:#7FD3F0}.pill.err{background:#4A2328;color:#FF9AA0}
+.meta{font-size:12px;color:var(--m)}
+.tx{font-size:13.5px;color:var(--b);white-space:pre-wrap;margin-top:6px;max-height:160px;overflow:auto}
+audio{width:100%;height:38px;margin-top:8px}
+.links{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.lnk{background:none;border:none;color:#7FD3F0;font-size:13px;font-weight:600;padding:0;cursor:pointer;text-decoration:none}
+.lnk.red{color:#FF9AA0}
+.login{max-width:360px;margin:18vh auto 0;padding:0 16px}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#191D38;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;z-index:20;max-width:92vw;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.banner{background:#4A2328;color:#FFD0D3;border-radius:12px;padding:12px;font-size:13px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+@keyframes bl{50%{opacity:.3}}.blink{animation:bl 1.2s infinite}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}}
+</style>
+</head>
+<body>
+<div id="app"></div><div id="toast"></div>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const fmtF = iso => { try { return new Date(iso).toLocaleString('es-CL', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }); } catch(e){ return ''; } };
+const newId = () => 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function toast(m){ $('#toast').innerHTML = `<div class="toast" role="status">${esc(m)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => $('#toast').innerHTML = '', 3800); }
+
+const S = { auth:true, evento:'', empresas:[], grabaciones:[], modelo:'', cola:0, empresa:'', nota:'', online:navigator.onLine, pend:[], recover:null, loaded:false };
+try { const u = JSON.parse(localStorage.getItem('wx-grab') || '{}'); S.empresa = u.empresa || ''; } catch(e){}
+const q = new URLSearchParams(location.search).get('empresa'); if(q) S.empresa = q;
+function saveUi(){ try { localStorage.setItem('wx-grab', JSON.stringify({ empresa:S.empresa })); } catch(e){} }
+
+/* ---- IndexedDB: cola de subida y grabación en curso ---- */
+let idb;
+const openIdb = () => new Promise((res, rej) => { const r = indexedDB.open('wx-grabadora', 1); r.onupgradeneeded = () => { r.result.createObjectStore('cola', { keyPath:'id' }); r.result.createObjectStore('kv'); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+const tx = (st, mode, fn) => new Promise((res, rej) => { const t = idb.transaction(st, mode); const o = fn(t.objectStore(st)); t.oncomplete = () => res(o && o.result); t.onerror = () => rej(t.error); });
+const colaAll = () => tx('cola', 'readonly', s => s.getAll());
+const colaPut = v => tx('cola', 'readwrite', s => s.put(v));
+const colaDel = k => tx('cola', 'readwrite', s => s.delete(k));
+const kvGet = k => tx('kv', 'readonly', s => s.get(k));
+const kvSet = (k, v) => tx('kv', 'readwrite', s => v === undefined ? s.delete(k) : s.put(v, k));
+
+async function api(method, url, body, form){
+  const o = { method, credentials:'same-origin', headers:{} };
+  if(form) o.body = form; else if(body !== undefined){ o.body = JSON.stringify(body); o.headers['Content-Type'] = 'application/json'; }
+  const r = await fetch(url, o);
+  if(r.status === 401){ S.auth = false; render(); throw Object.assign(new Error('auth'), { auth:true }); }
+  if(!r.ok){ let m = 'HTTP ' + r.status; try { m = (await r.json()).detail || m; } catch(e){} throw Object.assign(new Error(m), { status:r.status }); }
+  return r.json();
+}
+async function load(){
+  try {
+    const d = await api('GET', '/api/estado');
+    Object.assign(S, { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones, modelo:d.modelo, cola:d.cola, auth:true, online:true, loaded:true });
+    await kvSet('cache', { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones });
+  } catch(e){
+    if(!e.auth){ S.online = false; const c = await kvGet('cache').catch(() => null); if(c) Object.assign(S, c, { loaded:true }); }
+  }
+  const qn = new URLSearchParams(location.search).get('nombre');
+  if(S.auth && S.online && q && qn && !S.empresas.some(e => e.id === q)){
+    try { const e = await api('POST', '/api/empresas', { id:q, nombre:qn }); S.empresas.push(e); S.empresa = e.id; saveUi(); } catch(e){}
+  }
+  if(!S.empresa && S.empresas[0]) S.empresa = S.empresas[0].id;
+  render();
+}
+let subiendo = false;
+async function subirCola(){
+  if(subiendo || !S.pend.length) return;
+  subiendo = true; renderNet();
+  try {
+    for(const p of S.pend.slice()){
+      const f = new FormData();
+      f.append('id', p.id); f.append('empresa_id', p.empresa_id); f.append('creado_en', p.creado_en);
+      f.append('duracion_s', String(p.duracion_s)); f.append('nota', p.nota || '');
+      f.append('audio', p.blob, p.id + (/mp4/.test(p.mime) ? '.m4a' : '.webm'));
+      await api('POST', '/api/grabaciones', undefined, f);
+      await colaDel(p.id); S.pend = S.pend.filter(x => x.id !== p.id);
+    }
+    S.online = true; await load();
+  } catch(e){ if(!e.auth){ S.online = false; if(e.status === 400 || e.status === 404 || e.status === 413){ toast('El servidor rechazó una grabación: ' + e.message); } } }
+  finally { subiendo = false; renderNet(); }
+}
+setInterval(() => { if(S.pend.length) subirCola(); else if(S.auth && document.visibilityState === 'visible' && !rec) load(); }, 12000);
+window.addEventListener('online', () => { S.online = true; subirCola(); });
+window.addEventListener('offline', () => { S.online = false; renderNet(); });
+
+/* ---- Grabación ---- */
+let rec = null;
+const el = R => R.acc + (R.paused ? 0 : Date.now() - R.t0);
+async function start(){
+  if(rec) return;
+  if(!S.empresa){ toast('Elige la empresa primero.'); return; }
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || typeof MediaRecorder === 'undefined'){ toast('Este navegador no permite grabar. Usa Safari o Chrome actualizados.'); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } }); }
+  catch(e){ S.micMsg = e && e.name === 'NotAllowedError' ? 'Sin permiso de micrófono. En iPhone: Configuración > Apps > Safari > Micrófono > Preguntar o Permitir. Luego recarga esta página.' : 'No se pudo usar el micrófono (' + ((e && e.name) || 'error') + ').'; render(); return; }
+  S.micMsg = '';
+  const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(e){ return false; } }) || '';
+  let mr; try { mr = new MediaRecorder(stream, mime ? { mimeType:mime, audioBitsPerSecond:64000 } : undefined); } catch(e){ mr = new MediaRecorder(stream); }
+  const R = rec = { id:newId(), empresa_id:S.empresa, mr, stream, chunks:[], mime:(mr.mimeType || mime || 'audio/mp4').split(';')[0], t0:Date.now(), acc:0, paused:false, creado_en:new Date().toISOString() };
+  mr.ondataavailable = ev => { if(ev.data && ev.data.size) R.chunks.push(ev.data); };
+  mr.start(1000);
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; R.ac = new AC(); const src = R.ac.createMediaStreamSource(stream);
+    R.an = R.ac.createAnalyser(); R.an.fftSize = 1024; src.connect(R.an); R.buf = new Uint8Array(R.an.fftSize);
+  } catch(e){}
+  try { if(navigator.wakeLock) R.wake = await navigator.wakeLock.request('screen'); } catch(e){}
+  R.timer = setInterval(async () => {
+    const t = $('#timer'); if(t) t.textContent = fmt(el(R) / 1000);
+    if(Math.floor(el(R) / 1000) % 10 === 0){ try { await kvSet('rec', { id:R.id, empresa_id:R.empresa_id, mime:R.mime, creado_en:R.creado_en, ms:el(R), blob:new Blob(R.chunks, { type:R.mime }) }); } catch(e){} }
+    if(el(R) > 110 * 60 * 1000) stop();
+  }, 500);
+  render(); draw();
+}
+function draw(){
+  const R = rec; const c = $('#wave'); if(!R || !c) return;
+  const ctx = c.getContext('2d'); const w = c.width = c.clientWidth * devicePixelRatio, h = c.height = c.clientHeight * devicePixelRatio;
+  ctx.clearRect(0, 0, w, h);
+  if(R.an && !R.paused){
+    R.an.getByteTimeDomainData(R.buf);
+    ctx.lineWidth = 2 * devicePixelRatio; ctx.strokeStyle = '#00A0D0'; ctx.beginPath();
+    for(let i = 0; i < R.buf.length; i++){ const x = i / (R.buf.length - 1) * w, y = (R.buf[i] / 255) * h; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  } else { ctx.fillStyle = '#33395E'; ctx.fillRect(0, h / 2 - 1, w, 2); }
+  requestAnimationFrame(draw);
+}
+function pause(){
+  const R = rec; if(!R) return;
+  if(!R.paused){ try { R.mr.pause(); } catch(e){} R.acc += Date.now() - R.t0; R.paused = true; }
+  else { try { R.mr.resume(); } catch(e){} R.t0 = Date.now(); R.paused = false; }
+  render(); draw();
+}
+async function stop(){
+  const R = rec; if(!R || R.stopping) return; R.stopping = true; clearInterval(R.timer);
+  const dur = Math.round(el(R) / 1000);
+  await new Promise(res => { if(R.mr.state === 'inactive') return res(); R.mr.onstop = () => res(); try { R.mr.stop(); } catch(e){ res(); } setTimeout(res, 4000); });
+  try { R.stream.getTracks().forEach(t => t.stop()); } catch(e){}
+  try { R.ac && R.ac.close(); } catch(e){}
+  try { R.wake && R.wake.release(); } catch(e){}
+  const blob = new Blob(R.chunks, { type:R.mime });
+  rec = null;
+  if(blob.size){
+    const p = { id:R.id, empresa_id:R.empresa_id, blob, mime:R.mime, duracion_s:dur, creado_en:R.creado_en, nota:(S.nota || '').trim() };
+    await colaPut(p); S.pend.push(p); S.nota = '';
+    await kvSet('rec', undefined);
+    toast(S.online ? 'Grabación guardada. Subiendo…' : 'Grabación guardada en el teléfono. Se sube cuando haya señal.');
+    subirCola();
+  }
+  render();
+}
+async function recuperar(){
+  const r = S.recover; if(!r) return; S.recover = null;
+  const p = { id:r.id, empresa_id:r.empresa_id, blob:r.blob, mime:r.mime, duracion_s:Math.round(r.ms / 1000), creado_en:r.creado_en, nota:'' };
+  await colaPut(p); S.pend.push(p); await kvSet('rec', undefined); render(); subirCola();
+}
+window.addEventListener('beforeunload', ev => { if(rec){ ev.preventDefault(); ev.returnValue = ''; } });
+
+/* ---- Vista ---- */
+function netHtml(){
+  if(rec) return '<span class="net off blink">● Grabando</span>';
+  if(S.pend.length) return `<span class="net ${S.online ? 'pend' : 'off'}">${S.online ? (subiendo ? 'Subiendo…' : S.pend.length + ' por subir') : 'Sin señal · ' + S.pend.length + ' por subir'}</span>`;
+  return S.online ? '<span class="net">Conectado</span>' : '<span class="net off">Sin señal</span>';
+}
+function renderNet(){ const n = $('#net'); if(n) n.innerHTML = netHtml(); }
+function estadoPill(g){
+  if(g.estado_transcripcion === 'listo') return g.importada ? '<span class="pill ok">En el artifact</span>' : '<span class="pill ok">Transcrito</span>';
+  if(g.estado_transcripcion === 'error') return '<span class="pill err">Error al transcribir</span>';
+  if(g.estado_transcripcion === 'procesando') return '<span class="pill info blink">Transcribiendo…</span>';
+  return '<span class="pill info">En cola para transcribir</span>';
+}
+function render(){
+  const a = document.activeElement; if(a && a.id === 'nota' && !render.force){ render.pending = true; return; } render.force = false;
+  const app = $('#app');
+  if(!S.auth){
+    app.innerHTML = `<div class="login"><p class="k">Wherex · Feria minera</p><h1>Grabadora</h1><p class="msg" style="margin-top:16px">Abre la grabadora desde tu enlace personal (el botón Grabar del artifact o el ícono en tu pantalla de inicio). Ese enlace trae la llave de acceso, no necesitas clave.</p></div>`;
+    return;
+  }
+  const emp = S.empresas.find(e => e.id === S.empresa);
+  const lista = S.grabaciones.filter(g => g.empresa_id === S.empresa);
+  const pendHere = S.pend.filter(p => p.empresa_id === S.empresa);
+  const recHere = rec && rec.empresa_id === S.empresa;
+  app.innerHTML = `<div class="wrap">
+    <div class="top"><div><p class="k">${esc(S.evento || 'Feria minera')}</p><h1>Grabadora</h1></div><span id="net">${netHtml()}</span></div>
+    ${S.recover ? `<div class="banner"><span style="flex:1;min-width:180px">Quedó una grabación interrumpida (${fmt(S.recover.ms / 1000)}).</span><button class="btn small" id="rok">Recuperarla</button><button class="lnk red" id="rno">Descartar</button></div>` : ''}
+    <div class="card">
+      <label class="l" for="emp">Empresa</label>
+      <select id="emp" ${rec ? 'disabled' : ''}>${S.empresas.map(e => `<option value="${esc(e.id)}" ${e.id === S.empresa ? 'selected' : ''}>${esc((e.hora ? e.hora + ' · ' : '') + e.nombre)}</option>`).join('')}<option value="__nueva">+ Agregar empresa…</option></select>
+      <div class="rec">
+        <button class="mic ${recHere ? 'on' : ''}" id="mic" aria-label="${recHere ? 'Detener y guardar' : 'Grabar'}">${recHere ? '<span class="sq"></span>Detener' : '<span class="dot"></span>Grabar'}</button>
+        <div class="timer" id="timer">${rec ? fmt(el(rec) / 1000) : '0:00'}</div>
+        <canvas id="wave"></canvas>
+        ${recHere ? `<div class="row"><button class="btn ghost small" id="pa">${rec.paused ? 'Reanudar' : 'Pausar'}</button></div>` : ''}
+        <div class="msg ${S.micMsg ? 'warn' : ''}">${esc(S.micMsg || (recHere ? 'Grabando para ' + (emp ? emp.nombre : '') + '. Toca Detener al terminar.' : 'Pide permiso a tu contraparte antes de grabar. Mantén la pantalla encendida mientras grabas.'))}</div>
+      </div>
+      <label class="l" for="nota" style="margin-top:8px">Nota rápida (opcional, se envía con la grabación)</label>
+      <textarea id="nota" placeholder="Ej.: contacto, interés, próximo paso…">${esc(S.nota)}</textarea>
+    </div>
+    <div class="card">
+      <label class="l">Grabaciones de ${esc(emp ? emp.nombre : '—')}</label>
+      ${pendHere.map(p => `<div class="item"><div class="ih"><span class="nm">${fmtF(p.creado_en)} · ${fmt(p.duracion_s)}</span><span class="pill info">${S.online ? 'Subiendo…' : 'Guardada en el teléfono'}</span></div></div>`).join('')}
+      ${lista.length ? lista.map(g => `<div class="item">
+        <div class="ih"><span class="nm">${fmtF(g.creado_en)} · ${fmt(g.duracion_s)}</span>${estadoPill(g)}</div>
+        ${g.nota ? `<div class="meta" style="margin-top:4px">Nota: ${esc(g.nota)}</div>` : ''}
+        ${g.transcripcion ? `<div class="tx">${esc(g.transcripcion)}</div>` : ''}
+        <audio controls preload="none" src="/api/audio/${esc(g.id)}"></audio>
+        <div class="links"><a class="lnk" href="/api/audio/${esc(g.id)}" download>Descargar audio</a>${g.transcripcion ? `<a class="lnk" href="/api/transcripcion/${esc(g.id)}" download>Descargar transcripción</a>` : ''}<button class="lnk red" data-del="${esc(g.id)}">Eliminar</button></div>
+      </div>`).join('') : (pendHere.length ? '' : '<div class="meta">Todavía no hay grabaciones de esta empresa.</div>')}
+    </div>
+    <p class="meta" style="text-align:center">Las grabaciones se transcriben en el servidor y llegan solas a la empresa en el artifact de Claude.${S.cola ? ' En cola: ' + S.cola + '.' : ''}</p>
+  </div>`;
+  bind(); if(rec) draw(); else draw0();
+}
+function draw0(){ const c = $('#wave'); if(!c) return; const ctx = c.getContext('2d'); const w = c.width = c.clientWidth * devicePixelRatio, h = c.height = c.clientHeight * devicePixelRatio; ctx.fillStyle = '#33395E'; ctx.fillRect(0, h / 2 - 1, w, 2); }
+function bind(){
+  const sel = $('#emp');
+  if(sel) sel.onchange = async () => {
+    if(sel.value === '__nueva'){
+      const n = (window.prompt ? window.prompt('Nombre de la empresa') : '') || '';
+      if(n.trim()){ try { const e = await api('POST', '/api/empresas', { nombre:n.trim() }); S.empresas.push(e); S.empresa = e.id; } catch(e){ toast('No se pudo crear: ' + e.message); } }
+      saveUi(); render(); return;
+    }
+    S.empresa = sel.value; saveUi(); render();
+  };
+  const mic = $('#mic'); if(mic) mic.onclick = () => rec ? (rec.empresa_id === S.empresa ? stop() : toast('Estás grabando para otra empresa.')) : start();
+  const pa = $('#pa'); if(pa) pa.onclick = pause;
+  const nota = $('#nota'); if(nota){ nota.oninput = () => { S.nota = nota.value; }; nota.onblur = () => setTimeout(() => { if(render.pending){ render.pending = false; render(); } }, 200); }
+  const rok = $('#rok'); if(rok) rok.onclick = recuperar;
+  const rno = $('#rno'); if(rno) rno.onclick = async () => { S.recover = null; await kvSet('rec', undefined); render(); };
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if(b.dataset.c !== '1'){ b.dataset.c = '1'; b.textContent = 'Confirmar eliminación'; return; }
+    try { await api('DELETE', '/api/grabaciones/' + b.dataset.del); await load(); } catch(e){ toast('No se pudo eliminar.'); }
+  });
+}
+(async () => {
+  try { idb = await openIdb(); S.pend = await colaAll(); S.recover = await kvGet('rec') || null; } catch(e){ toast('Este navegador no permite guardar sin conexión.'); }
+  await load(); subirCola();
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
+-line);border-radius:12px;padding:12px;font-size:16px}
 textarea{min-height:80px;resize:vertical}
 .rec{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 4px}
 .mic{width:132px;height:132px;border-radius:50%;border:none;background:var(--r);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 0 0 10px rgba(224,81,90,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .1s}
