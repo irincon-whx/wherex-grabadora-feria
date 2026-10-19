@@ -20,18 +20,32 @@ from queue import Queue
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response
 
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
-MCP_TOKEN = os.environ.get("MCP_TOKEN", "")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")  # opcional; sin clave se entra con el enlace con llave
 DATA_DIR = Path(os.environ.get("DATA_DIR") or ("/data" if Path("/data").exists() else "./storage"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+_SEC_FILE = DATA_DIR / "secretos.json"
+try:
+    _SEC = json.loads(_SEC_FILE.read_text(encoding="utf-8"))
+except Exception:
+    _SEC = {}
+if not _SEC.get("mcp_token") or not _SEC.get("link_key"):
+    _SEC.setdefault("mcp_token", secrets.token_urlsafe(24))
+    _SEC.setdefault("link_key", secrets.token_urlsafe(18))
+    _SEC_FILE.write_text(json.dumps(_SEC), encoding="utf-8")
+MCP_TOKEN = os.environ.get("MCP_TOKEN") or _SEC["mcp_token"]
+LINK_KEY = os.environ.get("APP_KEY") or _SEC["link_key"]
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
 WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "2"))
-SECRET = (os.environ.get("SESSION_SECRET") or hashlib.sha256(("wx:" + APP_PASSWORD + MCP_TOKEN).encode()).hexdigest()).encode()
+SECRET = (os.environ.get("SESSION_SECRET") or hashlib.sha256(("wx:" + LINK_KEY + MCP_TOKEN).encode()).hexdigest()).encode()
 CHUNK = 600 * 1024  # bytes de audio por parte entregada al artifact
 BASE = Path(__file__).parent
 AGENDA = {"evento": "Feria minera · 21 y 22 de octubre de 2026", "empresas": [{"id": "r01", "nombre": "Salar Blanco", "hora": "16:01", "dia": "2026-10-21"}, {"id": "r02", "nombre": "ENAMI", "hora": "16:11", "dia": "2026-10-21"}, {"id": "r03", "nombre": "Pucobre", "hora": "16:21", "dia": "2026-10-21"}, {"id": "r04", "nombre": "Kinross Chile", "hora": "16:31", "dia": "2026-10-21"}, {"id": "r05", "nombre": "Gold Fields — Salares Norte", "hora": "16:41", "dia": "2026-10-21"}, {"id": "r06", "nombre": "CMP", "hora": "16:51", "dia": "2026-10-21"}, {"id": "r07", "nombre": "Lundin Mining — Caserones", "hora": "17:01", "dia": "2026-10-21"}, {"id": "r08", "nombre": "SCM Carola", "hora": "17:11", "dia": "2026-10-21"}, {"id": "r09", "nombre": "Capstone Copper — Santo Domingo", "hora": "17:21", "dia": "2026-10-21"}, {"id": "r10", "nombre": "Capstone Copper — Mantoverde", "hora": "17:31", "dia": "2026-10-21"}, {"id": "r11", "nombre": "Minera Altair", "hora": "17:41", "dia": "2026-10-21"}, {"id": "r12", "nombre": "Lundin Mining — Candelaria", "hora": "17:51", "dia": "2026-10-21"}]}
 
-if not APP_PASSWORD or len(MCP_TOKEN) < 16:
-    raise SystemExit("Define APP_PASSWORD y MCP_TOKEN (16+ caracteres) en las variables de Railway.")
+_DOM = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "<dominio>")
+print("=" * 60, flush=True)
+print(f"ENLACE GRABADORA (sin clave): https://{_DOM}/?k={LINK_KEY}", flush=True)
+print(f"URL CONECTOR MCP para Claude: https://{_DOM}/mcp/{MCP_TOKEN}", flush=True)
+print("=" * 60, flush=True)
 
 AUDIO_DIR = DATA_DIR / "audio"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
@@ -205,7 +219,7 @@ async def login(req: Request):
     if a[0] >= 10:
         raise HTTPException(429, "Demasiados intentos. Espera 15 minutos.")
     body = await req.json()
-    if not hmac.compare_digest(str(body.get("password", "")), APP_PASSWORD):
+    if not APP_PASSWORD or not hmac.compare_digest(str(body.get("password", "")), APP_PASSWORD):
         a[0] += 1
         ATTEMPTS[ip] = a
         raise HTTPException(401, "Clave incorrecta.")
@@ -452,8 +466,11 @@ def icon():
 
 
 @app.get("/manifest.webmanifest")
-def manifest():
-    return Response(MANIFEST, media_type="application/manifest+json")
+def manifest(req: Request):
+    m = json.loads(MANIFEST)
+    if verify(req.cookies.get("wx_auth")):
+        m["start_url"] = f"/?k={LINK_KEY}"  # el ícono en la pantalla de inicio entra sin clave
+    return Response(json.dumps(m), media_type="application/manifest+json", headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/sw.js")
@@ -461,7 +478,16 @@ def sw():
     return Response(SW_JS, media_type="text/javascript")
 
 
+def _cookie(resp):
+    exp = int(time.time()) + 60 * 86400
+    resp.set_cookie("wx_auth", sign(f"s:{exp}"), max_age=60 * 86400, httponly=True, secure=True, samesite="lax")
+    return resp
+
+
 @app.get("/")
-def index():
-    return FileResponse(BASE / "index.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+def index(k: str = ""):
+    resp = FileResponse(BASE / "index.html", media_type="text/html", headers={"Cache-Control": "no-cache"})
+    if k and hmac.compare_digest(k, LINK_KEY):
+        _cookie(resp)
+    return resp
 
