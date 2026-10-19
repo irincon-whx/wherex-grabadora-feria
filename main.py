@@ -247,9 +247,12 @@ async def nueva_empresa(req: Request):
     nombre = str(body.get("nombre", "")).strip()[:120]
     if not nombre:
         raise HTTPException(400, "Falta el nombre.")
-    eid = "x" + uuid.uuid4().hex[:10]
+    pid = str(body.get("id", "")).strip()
+    eid = pid if OK_ID.match(pid) else "x" + uuid.uuid4().hex[:10]
     with LOCK:
-        DB["empresas"][eid] = {"id": eid, "nombre": nombre, "hora": datetime.now().strftime("%H:%M"), "dia": "", "origen": "app"}
+        if eid in DB["empresas"]:
+            return DB["empresas"][eid]
+        DB["empresas"][eid] = {"id": eid, "nombre": nombre, "hora": datetime.now().strftime("%H:%M"), "dia": "", "origen": "artifact" if pid else "app"}
         save_db()
     return DB["empresas"][eid]
 
