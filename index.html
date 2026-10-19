@@ -60,7 +60,8 @@ audio{width:100%;height:38px;margin-top:8px}
 </style>
 </head>
 <body>
-<div id="app"></div><div id="toast"></div>
+<div id="app"><p style="text-align:center;margin-top:40vh;color:#8FA6BE;font-family:-apple-system,sans-serif">Cargando grabadora…</p></div><div id="toast"></div>
+<noscript><p style="text-align:center;color:#fff">Activa JavaScript en el navegador para usar la grabadora.</p></noscript>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -77,8 +78,13 @@ function saveUi(){ try { localStorage.setItem('wx-grab', JSON.stringify({ empres
 
 /* ---- IndexedDB: cola de subida y grabación en curso ---- */
 let idb;
-const openIdb = () => new Promise((res, rej) => { const r = indexedDB.open('wx-grabadora', 1); r.onupgradeneeded = () => { r.result.createObjectStore('cola', { keyPath:'id' }); r.result.createObjectStore('kv'); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-const tx = (st, mode, fn) => new Promise((res, rej) => { const t = idb.transaction(st, mode); const o = fn(t.objectStore(st)); t.oncomplete = () => res(o && o.result); t.onerror = () => rej(t.error); });
+const openIdb = () => new Promise((res, rej) => {
+  let done = false; const fin = (f, v) => { if(!done){ done = true; f(v); } };
+  setTimeout(() => fin(rej, new Error('idb timeout')), 2000);
+  try { const r = indexedDB.open('wx-grabadora', 1); r.onupgradeneeded = () => { r.result.createObjectStore('cola', { keyPath:'id' }); r.result.createObjectStore('kv'); }; r.onsuccess = () => fin(res, r.result); r.onerror = () => fin(rej, r.error); r.onblocked = () => fin(rej, new Error('idb blocked')); }
+  catch(e){ fin(rej, e); }
+});
+const tx = (st, mode, fn) => new Promise((res, rej) => { if(!idb){ res(mode === 'readonly' && st === 'cola' ? [] : undefined); return; } const t = idb.transaction(st, mode); const o = fn(t.objectStore(st)); t.oncomplete = () => res(o && o.result); t.onerror = () => rej(t.error); });
 const colaAll = () => tx('cola', 'readonly', s => s.getAll());
 const colaPut = v => tx('cola', 'readwrite', s => s.put(v));
 const colaDel = k => tx('cola', 'readwrite', s => s.delete(k));
@@ -208,7 +214,9 @@ function netHtml(){
 }
 function renderNet(){ const n = $('#net'); if(n) n.innerHTML = netHtml(); }
 function estadoPill(g){
-  if(g.estado_transcripcion === 'listo') return g.importada ? '<span class="pill ok">En el artifact</span>' : '<span class="pill ok">Transcrito</span>';
+  if(g.importada) return '<span class="pill ok">Guardado en la reunión</span>';
+  if(g.enviar) return '<span class="pill info">Enviado a la reunión</span>';
+  if(g.estado_transcripcion === 'listo') return '<span class="pill ok">Transcrito</span>';
   if(g.estado_transcripcion === 'error') return '<span class="pill err">Error al transcribir</span>';
   if(g.estado_transcripcion === 'procesando') return '<span class="pill info blink">Transcribiendo…</span>';
   return '<span class="pill info">En cola para transcribir</span>';
@@ -248,10 +256,13 @@ function render(){
         ${g.nota ? `<div class="meta" style="margin-top:4px">Nota: ${esc(g.nota)}</div>` : ''}
         ${g.transcripcion ? `<div class="tx">${esc(g.transcripcion)}</div>` : ''}
         <audio controls preload="none" src="/api/audio/${esc(g.id)}"></audio>
+        ${g.importada ? '' : g.enviar
+          ? `<div class="meta" style="margin-top:8px">Se guarda en la reunión de ${esc(emp ? emp.nombre : '')} apenas tengas abierto el artifact de Claude (revisa cada minuto).${g.estado_transcripcion === 'listo' || g.estado_transcripcion === 'error' ? '' : ' La transcripción llega después.'}</div>`
+          : `<div style="margin-top:10px"><button class="btn small" data-save="${esc(g.id)}">Guardar en la reunión</button></div>`}
         <div class="links"><a class="lnk" href="/api/audio/${esc(g.id)}" download>Descargar audio</a>${g.transcripcion ? `<a class="lnk" href="/api/transcripcion/${esc(g.id)}" download>Descargar transcripción</a>` : ''}<button class="lnk red" data-del="${esc(g.id)}">Eliminar</button></div>
       </div>`).join('') : (pendHere.length ? '' : '<div class="meta">Todavía no hay grabaciones de esta empresa.</div>')}
     </div>
-    <p class="meta" style="text-align:center">Las grabaciones se transcriben en el servidor y llegan solas a la empresa en el artifact de Claude.${S.cola ? ' En cola: ' + S.cola + '.' : ''}</p>
+    <p class="meta" style="text-align:center">Las grabaciones se transcriben en el servidor. Toca "Guardar en la reunión" para mandarlas al artifact de Claude.${S.cola ? ' En cola: ' + S.cola + '.' : ''}</p>
   </div>`;
   bind(); if(rec) draw(); else draw0();
 }
@@ -271,14 +282,26 @@ function bind(){
   const nota = $('#nota'); if(nota){ nota.oninput = () => { S.nota = nota.value; }; nota.onblur = () => setTimeout(() => { if(render.pending){ render.pending = false; render(); } }, 200); }
   const rok = $('#rok'); if(rok) rok.onclick = recuperar;
   const rno = $('#rno'); if(rno) rno.onclick = async () => { S.recover = null; await kvSet('rec', undefined); render(); };
+  document.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Guardando…';
+    try { await api('POST', '/api/grabaciones/' + b.dataset.save + '/guardar'); toast('Enviado. Quedará en la reunión del artifact.'); await load(); }
+    catch(e){ b.disabled = false; b.textContent = 'Guardar en la reunión'; toast('No se pudo enviar. Revisa la señal e intenta de nuevo.'); }
+  });
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     if(b.dataset.c !== '1'){ b.dataset.c = '1'; b.textContent = 'Confirmar eliminación'; return; }
     try { await api('DELETE', '/api/grabaciones/' + b.dataset.del); await load(); } catch(e){ toast('No se pudo eliminar.'); }
   });
 }
+function fatal(msg){
+  const a = document.getElementById('app'); if(!a || (S.loaded && a.querySelector('.wrap'))) { try { toast(msg); } catch(e){} return; }
+  a.innerHTML = '<div class="login"><h1>Grabadora</h1><p class="msg" style="margin-top:12px">No se pudo abrir la app (' + String(msg).replace(/[<>&]/g, '') + ').</p><button class="btn" style="margin-top:12px" onclick="location.reload()">Recargar</button></div>';
+}
+window.addEventListener('error', ev => fatal((ev && ev.message) || 'error'));
+window.addEventListener('unhandledrejection', ev => fatal((ev && ev.reason && ev.reason.message) || 'error'));
 (async () => {
-  try { idb = await openIdb(); S.pend = await colaAll(); S.recover = await kvGet('rec') || null; } catch(e){ toast('Este navegador no permite guardar sin conexión.'); }
-  await load(); subirCola();
+  const pIdb = openIdb().then(async db => { idb = db; S.pend = await colaAll(); S.recover = await kvGet('rec') || null; }).catch(() => { idb = null; });
+  await load();
+  await pIdb; render(); subirCola();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();
 </script>
