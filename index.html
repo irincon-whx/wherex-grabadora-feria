@@ -213,8 +213,7 @@ function render(){
   const a = document.activeElement; if(a && a.id === 'nota' && !render.force){ render.pending = true; return; } render.force = false;
   const app = $('#app');
   if(!S.auth){
-    app.innerHTML = `<div class="login"><p class="k">Wherex · Feria minera</p><h1>Grabadora</h1><form id="lf" style="margin-top:16px"><input type="password" id="pw" placeholder="Clave de acceso" autocomplete="current-password"><button class="btn" style="width:100%;justify-content:center;margin-top:12px">Entrar</button></form><p class="msg" id="lm"></p></div>`;
-    $('#lf').onsubmit = async ev => { ev.preventDefault(); try { const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password:$('#pw').value }) }); if(!r.ok){ $('#lm').textContent = (await r.json().catch(() => ({}))).detail || 'No se pudo ingresar.'; return; } S.auth = true; await load(); subirCola(); } catch(e){ $('#lm').textContent = 'Sin conexión.'; } };
+    app.innerHTML = `<div class="login"><p class="k">Wherex · Feria minera</p><h1>Grabadora</h1><p class="msg" style="margin-top:16px">Abre la grabadora desde tu enlace personal (el botón Grabar del artifact o el ícono en tu pantalla de inicio). Ese enlace trae la llave de acceso, no necesitas clave.</p></div>`;
     return;
   }
   const emp = S.empresas.find(e => e.id === S.empresa);
