@@ -64,6 +64,8 @@ def load_db():
         d = {}
     d.setdefault("empresas", {})
     d.setdefault("grabaciones", {})
+    d.setdefault("registros", {})
+    d["empresas"].pop("prueba_sistema", None)
     for e in AGENDA["empresas"]:
         d["empresas"].setdefault(e["id"], dict(e, origen="agenda"))
     return d
@@ -241,8 +243,9 @@ def estado(req: Request):
     with LOCK:
         emps = sorted(DB["empresas"].values(), key=lambda e: (e.get("dia") or "9", e.get("hora") or "99", e.get("nombre")))
         grs = sorted(DB["grabaciones"].values(), key=lambda g: g["creado_en"], reverse=True)
+        regs = sorted(DB["registros"].values(), key=lambda r: r["creado_en"], reverse=True)
         return {"evento": AGENDA["evento"], "modelo": MODEL["estado"], "cola": JOBS.qsize(),
-                "empresas": emps, "grabaciones": [resumen(g) for g in grs]}
+                "empresas": emps, "grabaciones": [resumen(g) for g in grs], "registros": regs}
 
 
 @app.post("/api/empresas")
@@ -294,6 +297,43 @@ async def editar(gid: str, req: Request):
             g["importada"] = False
         save_db()
         return resumen(g)
+
+
+REG_FIELDS = ("nombre", "cargo", "email", "telefono", "interes", "proximo")
+INTERESES = ("alto", "alto_medio", "medio", "medio_bajo", "bajo", "")
+
+
+@app.post("/api/empresas/{eid}/registros")
+async def nuevo_registro(eid: str, req: Request):
+    require_auth(req)
+    body = await req.json()
+    rid = str(body.get("id", "")).strip() or ("r" + uuid.uuid4().hex[:12])
+    if not OK_ID.match(rid) or not OK_ID.match(eid):
+        raise HTTPException(400, "Identificador inválido.")
+    reg = {k: str(body.get(k, "") or "").strip()[:2000] for k in REG_FIELDS}
+    if reg["interes"] not in INTERESES:
+        reg["interes"] = ""
+    if not any(reg[k] for k in REG_FIELDS):
+        raise HTTPException(400, "Completa al menos un campo.")
+    with LOCK:
+        if eid not in DB["empresas"]:
+            raise HTTPException(404, "Empresa no encontrada.")
+        if rid in DB["registros"]:
+            return DB["registros"][rid]
+        reg.update({"id": rid, "empresa_id": eid, "empresa": DB["empresas"][eid]["nombre"],
+                    "creado_en": str(body.get("creado_en") or now_iso())[:40], "importado": False})
+        DB["registros"][rid] = reg
+        save_db()
+        return reg
+
+
+@app.delete("/api/registros/{rid}")
+def borrar_registro(rid: str, req: Request):
+    require_auth(req)
+    with LOCK:
+        DB["registros"].pop(rid, None)
+        save_db()
+    return {"ok": True}
 
 
 @app.post("/api/grabaciones/{gid}/guardar")
@@ -365,6 +405,15 @@ TOOLS = [
      "description": "Marca una grabación como ya importada al artifact.",
      "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}},
      "annotations": {"readOnlyHint": False, "destructiveHint": False}},
+    {"name": "actualizar_empresas",
+     "description": "Carga o actualiza las empresas de la feria con su preparación (lo que sabemos) para mostrarlas en la app.",
+     "inputSchema": {"type": "object", "required": ["empresas"], "properties": {
+         "empresas": {"type": "array", "items": {"type": "object"}}}},
+     "annotations": {"readOnlyHint": False, "destructiveHint": False}},
+    {"name": "marcar_registro_importado",
+     "description": "Marca un registro de contacto (nombre, cargo, interés…) como ya guardado en el artifact.",
+     "inputSchema": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}},
+     "annotations": {"readOnlyHint": False, "destructiveHint": False}},
     {"name": "enlace_grabadora",
      "description": "Entrega el enlace personal (con llave) para abrir la grabadora web sin clave.",
      "inputSchema": {"type": "object", "properties": {}},
@@ -384,6 +433,35 @@ def tool_result(obj, is_error=False):
 
 def call_tool(name, args, host=""):
     args = args or {}
+    if name == "actualizar_empresas":
+        n = 0
+        with LOCK:
+            for e in (args.get("empresas") or [])[:300]:
+                if not isinstance(e, dict):
+                    continue
+                eid = str(e.get("id", ""))
+                if not OK_ID.match(eid) or eid == "prueba_sistema":
+                    continue
+                cur = DB["empresas"].get(eid) or {"id": eid, "origen": "artifact"}
+                for k in ("nombre", "hora", "dia", "relacion"):
+                    if isinstance(e.get(k), str) and (e[k] or k != "nombre"):
+                        cur[k] = e[k][:300]
+                if isinstance(e.get("prep"), dict):
+                    cur["prep"] = json.loads(json.dumps(e["prep"])[:20000]) if len(json.dumps(e["prep"])) <= 20000 else {}
+                cur.setdefault("nombre", eid)
+                DB["empresas"][eid] = cur
+                n += 1
+            save_db()
+        return tool_result({"ok": True, "empresas": n})
+    if name == "marcar_registro_importado":
+        with LOCK:
+            r = DB["registros"].get(str(args.get("id")))
+            if not r:
+                return tool_result({"error": "registro no encontrado"}, True)
+            r["importado"] = True
+            r["importado_en"] = now_iso()
+            save_db()
+        return tool_result({"ok": True, "id": r["id"]})
     if name == "enlace_grabadora":
         dom = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or host
         return tool_result({"url": f"https://{dom}/?k={LINK_KEY}", "base": f"https://{dom}", "k": LINK_KEY})
@@ -400,7 +478,9 @@ def call_tool(name, args, host=""):
                 if pend and g.get("importada") and (g.get("transcripcion_entregada") or g.get("estado_transcripcion") not in ("listo", "error")):
                     continue
                 out.append(resumen(g))
-            return tool_result({"grabaciones": out, "modelo": MODEL["estado"]})
+            regs = [r for r in sorted(DB["registros"].values(), key=lambda x: x["creado_en"])
+                    if (not eid or r["empresa_id"] == eid) and (not pend or not r.get("importado"))]
+            return tool_result({"grabaciones": out, "registros": regs, "modelo": MODEL["estado"]})
     if name == "obtener_audio":
         g = DB["grabaciones"].get(str(args.get("id")))
         if not g or not audio_path(g).exists():
