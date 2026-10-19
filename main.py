@@ -556,6 +556,16 @@ async def mcp(token: str, req: Request):
     return JSONResponse(replies if isinstance(msg, list) else replies[0])
 
 
+@app.post("/mcp")
+async def mcp_abierto(req: Request):
+    return await mcp(MCP_TOKEN, req)
+
+
+@app.get("/mcp")
+def mcp_abierto_get():
+    return Response(status_code=405)
+
+
 @app.get("/mcp/{token}")
 def mcp_get(token: str):
     return Response(status_code=405)
