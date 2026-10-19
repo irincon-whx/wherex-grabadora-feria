@@ -305,8 +305,9 @@ async def editar(gid: str, req: Request):
         return resumen(g)
 
 
-REG_FIELDS = ("nombre", "cargo", "email", "telefono", "interes", "proximo")
+REG_FIELDS = ("nombre", "cargo", "email", "telefono", "interes", "proximo", "toma")
 INTERESES = ("alto", "alto_medio", "medio", "medio_bajo", "bajo", "")
+TOMAS = ("Isabel", "Lucas", "")
 
 
 @app.post("/api/empresas/{eid}/registros")
@@ -319,6 +320,8 @@ async def nuevo_registro(eid: str, req: Request):
     reg = {k: str(body.get(k, "") or "").strip()[:2000] for k in REG_FIELDS}
     if reg["interes"] not in INTERESES:
         reg["interes"] = ""
+    if reg["toma"] not in TOMAS:
+        reg["toma"] = ""
     if not any(reg[k] for k in REG_FIELDS):
         raise HTTPException(400, "Completa al menos un campo.")
     with LOCK:
