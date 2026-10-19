@@ -89,6 +89,7 @@ try { const u = JSON.parse(localStorage.getItem('wx-grab') || '{}'); S.empresa =
 const q = new URLSearchParams(location.search).get('empresa'); if(q) S.empresa = q;
 function saveUi(){ try { localStorage.setItem('wx-grab', JSON.stringify({ empresa:S.empresa })); } catch(e){} }
 const INTERES = [['alto','Alto'],['alto_medio','Alto-medio'],['medio','Medio'],['medio_bajo','Medio-bajo'],['bajo','Bajo']];
+const TOMAS = ['Isabel','Lucas'];
 const intLabel = v => { const x = INTERES.find(i => i[0] === v); return x ? 'Interés ' + x[1].toLowerCase() : ''; };
 S.reg = {}; S.regCola = [];
 try { S.regCola = JSON.parse(localStorage.getItem('wx-reg-cola') || '[]'); } catch(e){ S.regCola = []; }
@@ -123,7 +124,7 @@ function registroHtml(emp){
   const inp = (k, ph, type) => `<input type="${type || 'text'}" data-keep="1" data-reg="${k}" placeholder="${ph}" value="${esc(d[k] || '')}"${type === 'email' ? ' autocapitalize="off" inputmode="email"' : ''}${type === 'tel' ? ' inputmode="tel"' : ''}>`;
   const guardados = (S.registros || []).filter(r => r.empresa_id === S.empresa);
   const cola = S.regCola.filter(r => r.empresa_id === S.empresa);
-  const item = (r, est) => `<div class="item"><div class="ih"><span class="nm">${esc(r.nombre || 'Sin nombre')}${r.cargo ? ' · ' + esc(r.cargo) : ''}</span>${r.interes ? `<span class="pill">${esc(intLabel(r.interes))}</span>` : ''}${est}</div>
+  const item = (r, est) => `<div class="item"><div class="ih"><span class="nm">${esc(r.nombre || 'Sin nombre')}${r.cargo ? ' · ' + esc(r.cargo) : ''}</span>${r.toma ? `<span class="pill">Toma: ${esc(r.toma)}</span>` : ''}${r.interes ? `<span class="pill">${esc(intLabel(r.interes))}</span>` : ''}${est}</div>
       ${(r.email || r.telefono) ? `<div class="meta" style="margin-top:4px">${[r.email, r.telefono].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
       ${r.proximo ? `<div class="tx">${esc(r.proximo)}</div>` : ''}
       ${est.includes('Guardado') ? '' : `<div class="links"><button class="lnk red" data-delreg="${esc(r.id)}">Eliminar</button></div>`}</div>`;
@@ -132,6 +133,8 @@ function registroHtml(emp){
     <div class="grid2">${inp('nombre', 'Nombre')}${inp('cargo', 'Cargo')}${inp('email', 'Correo', 'email')}${inp('telefono', 'Teléfono', 'tel')}</div>
     <div class="meta" style="margin-top:12px">Interés</div>
     <div class="chips">${INTERES.map(([v, l]) => `<button type="button" class="chip ${d.interes === v ? 'on' : ''}" data-int="${v}">${l}</button>`).join('')}</div>
+    <div class="meta">Toma la reunión</div>
+    <div class="chips">${TOMAS.map(t => `<button type="button" class="chip ${d.toma === t ? 'on' : ''}" data-toma="${t}">${t}</button>`).join('')}</div>
     <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="regsave">Guardar</button><span class="meta">Se guarda en la reunión del artifact y en la ficha de la empresa.</span></div>
     ${cola.length || guardados.length ? `<div style="margin-top:10px">${cola.map(r => item(r, `<span class="pill info">${S.online ? 'Enviando…' : 'Sin señal · se envía después'}</span>`)).join('')}${guardados.map(r => item(r, r.importado ? '<span class="pill ok">Guardado en la reunión</span>' : '<span class="pill info">Enviado a la reunión</span>')).join('')}</div>` : ''}
   </div>`;
@@ -353,11 +356,12 @@ function bind(){
     i.oninput = () => { S.reg[S.empresa] = Object.assign({}, S.reg[S.empresa], { [i.dataset.reg]: i.value }); };
     i.onblur = () => setTimeout(() => { const a = document.activeElement; if(render.pending && !(a && a.dataset && a.dataset.keep)){ render.pending = false; render(); } }, 200);
   });
+  document.querySelectorAll('[data-toma]').forEach(b => b.onclick = () => { const d = S.reg[S.empresa] || {}; S.reg[S.empresa] = Object.assign({}, d, { toma: d.toma === b.dataset.toma ? '' : b.dataset.toma }); render.force = true; render(); });
   document.querySelectorAll('[data-int]').forEach(b => b.onclick = () => { const d = S.reg[S.empresa] || {}; S.reg[S.empresa] = Object.assign({}, d, { interes: d.interes === b.dataset.int ? '' : b.dataset.int }); render.force = true; render(); });
   const rs = $('#regsave'); if(rs) rs.onclick = async () => {
     const d = S.reg[S.empresa] || {};
-    const r = { id:newId(), empresa_id:S.empresa, nombre:(d.nombre || '').trim(), cargo:(d.cargo || '').trim(), email:(d.email || '').trim(), telefono:(d.telefono || '').trim(), interes:d.interes || '', proximo:(d.proximo || '').trim(), creado_en:new Date().toISOString() };
-    if(!r.nombre && !r.cargo && !r.email && !r.telefono && !r.interes){ toast('Completa al menos un campo.'); return; }
+    const r = { id:newId(), empresa_id:S.empresa, nombre:(d.nombre || '').trim(), cargo:(d.cargo || '').trim(), email:(d.email || '').trim(), telefono:(d.telefono || '').trim(), interes:d.interes || '', proximo:(d.proximo || '').trim(), toma:d.toma || '', creado_en:new Date().toISOString() };
+    if(!r.nombre && !r.cargo && !r.email && !r.telefono && !r.interes && !r.toma){ toast('Completa al menos un campo.'); return; }
     S.regCola.push(r); saveRegCola(); S.reg[S.empresa] = {};
     render.force = true; render(); toast('Registro guardado.');
     subirRegistros();
