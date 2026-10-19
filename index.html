@@ -24,7 +24,7 @@ h1{font-size:20px;color:var(--t);margin:2px 0 0;font-weight:700}
 .net.pend{background:#1A3A4A;color:#7FD3F0}.net.off{background:#4A2328;color:#FF9AA0}
 .card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:14px}
 label.l{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--m);margin:0 0 6px}
-select,input[type=text],input[type=password],textarea{width:100%;background:var(--bg);color:var(--t);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
+select,input[type=text],input[type=password],input[type=email],input[type=tel],textarea{width:100%;background:var(--bg);color:var(--t);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:16px}
 textarea{min-height:80px;resize:vertical}
 .rec{display:flex;flex-direction:column;align-items:center;gap:14px;padding:10px 0 4px}
 .mic{width:132px;height:132px;border-radius:50%;border:none;background:var(--r);color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 0 0 10px rgba(224,81,90,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;transition:transform .1s}
@@ -55,6 +55,19 @@ audio{width:100%;height:38px;margin-top:8px}
 .login{max-width:360px;margin:18vh auto 0;padding:0 16px}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#fff;color:#191D38;padding:10px 16px;border-radius:12px;font-size:13px;font-weight:600;z-index:20;max-width:92vw;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 .banner{background:#4A2328;color:#FFD0D3;border-radius:12px;padding:12px;font-size:13px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media (max-width:420px){.grid2{grid-template-columns:1fr}}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--b);border-radius:999px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--a);border-color:var(--a);color:#fff}
+details.prep summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+details.prep summary::-webkit-details-marker{display:none}
+details.prep summary::after{content:'▾';margin-left:auto;color:var(--m)}
+details.prep:not([open]) summary::after{content:'▸'}
+.lead{font-size:14px;color:var(--t);margin:10px 0 0;line-height:1.5}
+.ptit{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--g);margin:14px 0 4px}
+.gancho{background:var(--bg);border-radius:12px;padding:10px 12px;color:var(--t);font-size:13.5px}
+ul.pl{margin:2px 0 0;padding-left:18px;font-size:13.5px;color:var(--b)}ul.pl li{margin:3px 0}ul.pl.warn li{color:#FFB3B8}
+.hist{font-size:13px;color:var(--b);white-space:pre-wrap;margin-top:6px}
 @keyframes bl{50%{opacity:.3}}.blink{animation:bl 1.2s infinite}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}}
 </style>
@@ -75,6 +88,55 @@ const S = { auth:true, evento:'', empresas:[], grabaciones:[], modelo:'', cola:0
 try { const u = JSON.parse(localStorage.getItem('wx-grab') || '{}'); S.empresa = u.empresa || ''; } catch(e){}
 const q = new URLSearchParams(location.search).get('empresa'); if(q) S.empresa = q;
 function saveUi(){ try { localStorage.setItem('wx-grab', JSON.stringify({ empresa:S.empresa })); } catch(e){} }
+const INTERES = [['alto','Alto'],['alto_medio','Alto-medio'],['medio','Medio'],['medio_bajo','Medio-bajo'],['bajo','Bajo']];
+const intLabel = v => { const x = INTERES.find(i => i[0] === v); return x ? 'Interés ' + x[1].toLowerCase() : ''; };
+S.reg = {}; S.regCola = [];
+try { S.regCola = JSON.parse(localStorage.getItem('wx-reg-cola') || '[]'); } catch(e){ S.regCola = []; }
+function saveRegCola(){ try { localStorage.setItem('wx-reg-cola', JSON.stringify(S.regCola)); } catch(e){} }
+let enviandoReg = false;
+async function subirRegistros(){
+  if(enviandoReg || !S.regCola.length) return;
+  enviandoReg = true;
+  try {
+    for(const r of S.regCola.slice()){
+      try { await api('POST', '/api/empresas/' + encodeURIComponent(r.empresa_id) + '/registros', r); S.regCola = S.regCola.filter(x => x.id !== r.id); saveRegCola(); }
+      catch(e){ if(e.status && e.status < 500 && e.status !== 404){ S.regCola = S.regCola.filter(x => x.id !== r.id); saveRegCola(); toast('Un registro no se pudo guardar: ' + e.message); } else break; }
+    }
+  } finally { enviandoReg = false; }
+  await load();
+}
+function listHtml(arr, cls){ return (arr && arr.length) ? `<ul class="pl ${cls || ''}">${arr.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<div class="meta">—</div>'; }
+function prepHtml(emp){
+  const p = (emp && emp.prep) || {};
+  if(!p.resumen && !p.gancho && !(p.preguntas || []).length) return '';
+  return `<details class="card prep" open><summary><label class="l" style="margin:0">Lo que sabemos</label></summary>
+    ${p.resumen ? `<p class="lead">${esc(p.resumen)}</p>` : ''}
+    ${p.gancho ? `<div class="ptit">Gancho de conversación</div><div class="gancho">${esc(p.gancho)}</div>` : ''}
+    <div class="ptit">A quién buscar</div>${listHtml(p.buscar)}
+    <div class="ptit">Preguntas</div>${listHtml(p.preguntas)}
+    ${(p.alertas || []).length ? `<div class="ptit">Alertas</div>${listHtml(p.alertas, 'warn')}` : ''}
+    ${p.historial ? `<details style="margin-top:10px"><summary class="lnk">Historial en HubSpot y Diio</summary><div class="hist">${esc(p.historial)}</div></details>` : ''}
+  </details>`;
+}
+function registroHtml(emp){
+  const d = S.reg[S.empresa] || {};
+  const inp = (k, ph, type) => `<input type="${type || 'text'}" data-keep="1" data-reg="${k}" placeholder="${ph}" value="${esc(d[k] || '')}"${type === 'email' ? ' autocapitalize="off" inputmode="email"' : ''}${type === 'tel' ? ' inputmode="tel"' : ''}>`;
+  const guardados = (S.registros || []).filter(r => r.empresa_id === S.empresa);
+  const cola = S.regCola.filter(r => r.empresa_id === S.empresa);
+  const item = (r, est) => `<div class="item"><div class="ih"><span class="nm">${esc(r.nombre || 'Sin nombre')}${r.cargo ? ' · ' + esc(r.cargo) : ''}</span>${r.interes ? `<span class="pill">${esc(intLabel(r.interes))}</span>` : ''}${est}</div>
+      ${(r.email || r.telefono) ? `<div class="meta" style="margin-top:4px">${[r.email, r.telefono].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
+      ${r.proximo ? `<div class="tx">${esc(r.proximo)}</div>` : ''}
+      ${est.includes('Guardado') ? '' : `<div class="links"><button class="lnk red" data-delreg="${esc(r.id)}">Eliminar</button></div>`}</div>`;
+  return `<div class="card">
+    <label class="l">Registro</label>
+    <div class="grid2">${inp('nombre', 'Nombre')}${inp('cargo', 'Cargo')}${inp('email', 'Correo', 'email')}${inp('telefono', 'Teléfono', 'tel')}</div>
+    <div class="meta" style="margin-top:12px">Interés</div>
+    <div class="chips">${INTERES.map(([v, l]) => `<button type="button" class="chip ${d.interes === v ? 'on' : ''}" data-int="${v}">${l}</button>`).join('')}</div>
+    <textarea data-keep="1" data-reg="proximo" placeholder="Próximos pasos u otros">${esc(d.proximo || '')}</textarea>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="regsave">Guardar</button><span class="meta">Se guarda en la reunión del artifact y en la ficha de la empresa.</span></div>
+    ${cola.length || guardados.length ? `<div style="margin-top:10px">${cola.map(r => item(r, `<span class="pill info">${S.online ? 'Enviando…' : 'Sin señal · se envía después'}</span>`)).join('')}${guardados.map(r => item(r, r.importado ? '<span class="pill ok">Guardado en la reunión</span>' : '<span class="pill info">Enviado a la reunión</span>')).join('')}</div>` : ''}
+  </div>`;
+}
 
 /* ---- IndexedDB: cola de subida y grabación en curso ---- */
 let idb;
@@ -102,8 +164,8 @@ async function api(method, url, body, form){
 async function load(){
   try {
     const d = await api('GET', '/api/estado');
-    Object.assign(S, { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones, modelo:d.modelo, cola:d.cola, auth:true, online:true, loaded:true });
-    await kvSet('cache', { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones });
+    Object.assign(S, { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones, registros:d.registros || [], modelo:d.modelo, cola:d.cola, auth:true, online:true, loaded:true });
+    await kvSet('cache', { evento:d.evento, empresas:d.empresas, grabaciones:d.grabaciones, registros:d.registros || [] });
   } catch(e){
     if(!e.auth){ S.online = false; const c = await kvGet('cache').catch(() => null); if(c) Object.assign(S, c, { loaded:true }); }
   }
@@ -131,8 +193,8 @@ async function subirCola(){
   } catch(e){ if(!e.auth){ S.online = false; if(e.status === 400 || e.status === 404 || e.status === 413){ toast('El servidor rechazó una grabación: ' + e.message); } } }
   finally { subiendo = false; renderNet(); }
 }
-setInterval(() => { if(S.pend.length) subirCola(); else if(S.auth && document.visibilityState === 'visible' && !rec) load(); }, 12000);
-window.addEventListener('online', () => { S.online = true; subirCola(); });
+setInterval(() => { if(S.regCola.length) subirRegistros(); if(S.pend.length) subirCola(); else if(S.auth && document.visibilityState === 'visible' && !rec) load(); }, 12000);
+window.addEventListener('online', () => { S.online = true; subirCola(); subirRegistros(); });
 window.addEventListener('offline', () => { S.online = false; renderNet(); });
 
 /* ---- Grabación ---- */
@@ -222,7 +284,7 @@ function estadoPill(g){
   return '<span class="pill info">En cola para transcribir</span>';
 }
 function render(){
-  const a = document.activeElement; if(a && a.id === 'nota' && !render.force){ render.pending = true; return; } render.force = false;
+  const a = document.activeElement; if(a && (a.id === 'nota' || (a.dataset && a.dataset.keep)) && !render.force){ render.pending = true; return; } render.force = false;
   const app = $('#app');
   if(!S.auth){
     app.innerHTML = `<div class="login"><p class="k">Wherex · Feria minera</p><h1>Grabadora</h1><p class="msg" style="margin-top:16px">Abre la grabadora desde tu enlace personal (el botón Grabar del artifact o el ícono en tu pantalla de inicio). Ese enlace trae la llave de acceso, no necesitas clave.</p></div>`;
@@ -238,6 +300,12 @@ function render(){
     <div class="card">
       <label class="l" for="emp">Empresa</label>
       <select id="emp" ${rec ? 'disabled' : ''}>${S.empresas.map(e => `<option value="${esc(e.id)}" ${e.id === S.empresa ? 'selected' : ''}>${esc((e.hora ? e.hora + ' · ' : '') + e.nombre)}</option>`).join('')}<option value="__nueva">+ Agregar empresa…</option></select>
+      ${emp && emp.relacion ? `<div class="meta" style="margin-top:6px">${esc(emp.relacion)}</div>` : ''}
+    </div>
+    ${prepHtml(emp)}
+    ${registroHtml(emp)}
+    <div class="card">
+      <label class="l">Grabar</label>
       <div class="rec">
         <button class="mic ${recHere ? 'on' : ''}" id="mic" aria-label="${recHere ? 'Detener y guardar' : 'Grabar'}">${recHere ? '<span class="sq"></span>Detener' : '<span class="dot"></span>Grabar'}</button>
         <div class="timer" id="timer">${rec ? fmt(el(rec) / 1000) : '0:00'}</div>
@@ -262,7 +330,7 @@ function render(){
         <div class="links"><a class="lnk" href="/api/audio/${esc(g.id)}" download>Descargar audio</a>${g.transcripcion ? `<a class="lnk" href="/api/transcripcion/${esc(g.id)}" download>Descargar transcripción</a>` : ''}<button class="lnk red" data-del="${esc(g.id)}">Eliminar</button></div>
       </div>`).join('') : (pendHere.length ? '' : '<div class="meta">Todavía no hay grabaciones de esta empresa.</div>')}
     </div>
-    <p class="meta" style="text-align:center">Las grabaciones se transcriben en el servidor. Toca "Guardar en la reunión" para mandarlas al artifact de Claude.${S.cola ? ' En cola: ' + S.cola + '.' : ''}</p>
+    <p class="meta" style="text-align:center">El registro se envía al artifact al tocar Guardar. Las grabaciones se transcriben en el servidor; toca "Guardar en la reunión" para mandarlas.${S.cola ? ' En cola: ' + S.cola + '.' : ''}</p>
   </div>`;
   bind(); if(rec) draw(); else draw0();
 }
@@ -282,6 +350,25 @@ function bind(){
   const nota = $('#nota'); if(nota){ nota.oninput = () => { S.nota = nota.value; }; nota.onblur = () => setTimeout(() => { if(render.pending){ render.pending = false; render(); } }, 200); }
   const rok = $('#rok'); if(rok) rok.onclick = recuperar;
   const rno = $('#rno'); if(rno) rno.onclick = async () => { S.recover = null; await kvSet('rec', undefined); render(); };
+  document.querySelectorAll('[data-reg]').forEach(i => {
+    i.oninput = () => { S.reg[S.empresa] = Object.assign({}, S.reg[S.empresa], { [i.dataset.reg]: i.value }); };
+    i.onblur = () => setTimeout(() => { const a = document.activeElement; if(render.pending && !(a && a.dataset && a.dataset.keep)){ render.pending = false; render(); } }, 200);
+  });
+  document.querySelectorAll('[data-int]').forEach(b => b.onclick = () => { const d = S.reg[S.empresa] || {}; S.reg[S.empresa] = Object.assign({}, d, { interes: d.interes === b.dataset.int ? '' : b.dataset.int }); render.force = true; render(); });
+  const rs = $('#regsave'); if(rs) rs.onclick = async () => {
+    const d = S.reg[S.empresa] || {};
+    const r = { id:newId(), empresa_id:S.empresa, nombre:(d.nombre || '').trim(), cargo:(d.cargo || '').trim(), email:(d.email || '').trim(), telefono:(d.telefono || '').trim(), interes:d.interes || '', proximo:(d.proximo || '').trim(), creado_en:new Date().toISOString() };
+    if(!r.nombre && !r.cargo && !r.email && !r.telefono && !r.proximo && !r.interes){ toast('Completa al menos un campo.'); return; }
+    S.regCola.push(r); saveRegCola(); S.reg[S.empresa] = {};
+    render.force = true; render(); toast('Registro guardado.');
+    subirRegistros();
+  };
+  document.querySelectorAll('[data-delreg]').forEach(b => b.onclick = async () => {
+    if(b.dataset.c !== '1'){ b.dataset.c = '1'; b.textContent = 'Confirmar eliminación'; return; }
+    const id = b.dataset.delreg;
+    if(S.regCola.some(x => x.id === id)){ S.regCola = S.regCola.filter(x => x.id !== id); saveRegCola(); render.force = true; render(); return; }
+    try { await api('DELETE', '/api/registros/' + id); await load(); } catch(e){ toast('No se pudo eliminar.'); }
+  });
   document.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     b.disabled = true; b.textContent = 'Guardando…';
     try { await api('POST', '/api/grabaciones/' + b.dataset.save + '/guardar'); toast('Enviado. Quedará en la reunión del artifact.'); await load(); }
@@ -301,7 +388,7 @@ window.addEventListener('unhandledrejection', ev => fatal((ev && ev.reason && ev
 (async () => {
   const pIdb = openIdb().then(async db => { idb = db; S.pend = await colaAll(); S.recover = await kvGet('rec') || null; }).catch(() => { idb = null; });
   await load();
-  await pIdb; render(); subirCola();
+  await pIdb; render(); subirCola(); subirRegistros();
   if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 })();
 </script>
