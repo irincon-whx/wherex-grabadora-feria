@@ -65,6 +65,7 @@ def load_db():
     d.setdefault("empresas", {})
     d.setdefault("grabaciones", {})
     d.setdefault("registros", {})
+    d.setdefault("registros_borrados", {})
     d["empresas"].pop("prueba_sistema", None)
     for e in AGENDA["empresas"]:
         d["empresas"].setdefault(e["id"], dict(e, origen="agenda"))
@@ -340,7 +341,9 @@ async def nuevo_registro(eid: str, req: Request):
 def borrar_registro(rid: str, req: Request):
     require_auth(req)
     with LOCK:
-        DB["registros"].pop(rid, None)
+        r = DB["registros"].pop(rid, None)
+        if r and r.get("importado"):
+            DB["registros_borrados"][rid] = {"id": rid, "empresa_id": r.get("empresa_id", ""), "nombre": r.get("nombre", "")}
         save_db()
     return {"ok": True}
 
@@ -464,6 +467,9 @@ def call_tool(name, args, host=""):
         return tool_result({"ok": True, "empresas": n})
     if name == "marcar_registro_importado":
         with LOCK:
+            if DB["registros_borrados"].pop(str(args.get("id")), None):
+                save_db()
+                return tool_result({"ok": True, "id": str(args.get("id")), "borrado": True})
             r = DB["registros"].get(str(args.get("id")))
             if not r:
                 return tool_result({"error": "registro no encontrado"}, True)
@@ -489,7 +495,8 @@ def call_tool(name, args, host=""):
                 out.append(resumen(g))
             regs = [r for r in sorted(DB["registros"].values(), key=lambda x: x["creado_en"])
                     if (not eid or r["empresa_id"] == eid) and (not pend or not r.get("importado"))]
-            return tool_result({"grabaciones": out, "registros": regs, "modelo": MODEL["estado"]})
+            borr = list(DB["registros_borrados"].values())
+            return tool_result({"grabaciones": out, "registros": regs, "registros_borrados": borr, "modelo": MODEL["estado"]})
     if name == "obtener_audio":
         g = DB["grabaciones"].get(str(args.get("id")))
         if not g or not audio_path(g).exists():
