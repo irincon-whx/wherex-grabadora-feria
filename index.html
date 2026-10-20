@@ -127,7 +127,7 @@ function registroHtml(emp){
   const item = (r, est) => `<div class="item"><div class="ih"><span class="nm">${esc(r.nombre || 'Sin nombre')}${r.cargo ? ' · ' + esc(r.cargo) : ''}</span>${r.toma ? `<span class="pill">Toma: ${esc(r.toma)}</span>` : ''}${r.interes ? `<span class="pill">${esc(intLabel(r.interes))}</span>` : ''}${est}</div>
       ${(r.email || r.telefono) ? `<div class="meta" style="margin-top:4px">${[r.email, r.telefono].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
       ${r.proximo ? `<div class="tx">${esc(r.proximo)}</div>` : ''}
-      ${est.includes('Guardado') ? '' : `<div class="links"><button class="lnk red" data-delreg="${esc(r.id)}">Eliminar</button></div>`}</div>`;
+      <div class="links"><button class="lnk red" data-delreg="${esc(r.id)}"${r.importado ? ' data-imp="1"' : ''}>Eliminar</button></div></div>`;
   return `<div class="card">
     <label class="l">Registro</label>
     <div class="grid2">${inp('nombre', 'Nombre')}${inp('cargo', 'Cargo')}${inp('email', 'Correo', 'email')}${inp('telefono', 'Teléfono', 'tel')}</div>
@@ -367,10 +367,10 @@ function bind(){
     subirRegistros();
   };
   document.querySelectorAll('[data-delreg]').forEach(b => b.onclick = async () => {
-    if(b.dataset.c !== '1'){ b.dataset.c = '1'; b.textContent = 'Confirmar eliminación'; return; }
+    if(b.dataset.c !== '1'){ b.dataset.c = '1'; b.textContent = b.dataset.imp ? 'Confirmar (se borra también del artifact)' : 'Confirmar eliminación'; return; }
     const id = b.dataset.delreg;
     if(S.regCola.some(x => x.id === id)){ S.regCola = S.regCola.filter(x => x.id !== id); saveRegCola(); render.force = true; render(); return; }
-    try { await api('DELETE', '/api/registros/' + id); await load(); } catch(e){ toast('No se pudo eliminar.'); }
+    try { await api('DELETE', '/api/registros/' + id); await load(); toast(b.dataset.imp ? 'Eliminado. Se quita del artifact en la próxima sincronización.' : 'Eliminado.'); } catch(e){ toast('No se pudo eliminar.'); }
   });
   document.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => {
     b.disabled = true; b.textContent = 'Guardando…';
