@@ -39,7 +39,7 @@ WHISPER_THREADS = int(os.environ.get("WHISPER_THREADS", "1"))
 SECRET = (os.environ.get("SESSION_SECRET") or hashlib.sha256(("wx:" + LINK_KEY + MCP_TOKEN).encode()).hexdigest()).encode()
 CHUNK = 600 * 1024  # bytes de audio por parte entregada al artifact
 BASE = Path(__file__).parent
-AGENDA = {"evento": "Feria FOREDE · 21 y 22 de octubre de 2026", "empresas": [{"id": "r01", "nombre": "Salar Blanco", "hora": "16:01", "dia": "2026-10-21"}, {"id": "r02", "nombre": "ENAMI", "hora": "16:11", "dia": "2026-10-21"}, {"id": "r03", "nombre": "Pucobre", "hora": "16:21", "dia": "2026-10-21"}, {"id": "r04", "nombre": "Kinross Chile", "hora": "16:31", "dia": "2026-10-21"}, {"id": "r05", "nombre": "Gold Fields — Salares Norte", "hora": "16:41", "dia": "2026-10-21"}, {"id": "r06", "nombre": "CMP", "hora": "16:51", "dia": "2026-10-21"}, {"id": "r07", "nombre": "Lundin Mining — Caserones", "hora": "17:01", "dia": "2026-10-21"}, {"id": "r08", "nombre": "SCM Carola", "hora": "17:11", "dia": "2026-10-21"}, {"id": "r09", "nombre": "Capstone Copper — Santo Domingo", "hora": "17:21", "dia": "2026-10-21"}, {"id": "r10", "nombre": "Capstone Copper — Mantoverde", "hora": "17:31", "dia": "2026-10-21"}, {"id": "r11", "nombre": "Minera Altair", "hora": "17:41", "dia": "2026-10-21"}, {"id": "r12", "nombre": "Lundin Mining — Candelaria", "hora": "17:51", "dia": "2026-10-21"}]}
+AGENDA = {"evento": "Feria minera · 21 y 22 de octubre de 2026", "empresas": [{"id": "r01", "nombre": "Salar Blanco", "hora": "16:01", "dia": "2026-10-21"}, {"id": "r02", "nombre": "ENAMI", "hora": "16:11", "dia": "2026-10-21"}, {"id": "r03", "nombre": "Pucobre", "hora": "16:21", "dia": "2026-10-21"}, {"id": "r04", "nombre": "Kinross Chile", "hora": "16:31", "dia": "2026-10-21"}, {"id": "r05", "nombre": "Gold Fields — Salares Norte", "hora": "16:41", "dia": "2026-10-21"}, {"id": "r06", "nombre": "CMP", "hora": "16:51", "dia": "2026-10-21"}, {"id": "r07", "nombre": "Lundin Mining — Caserones", "hora": "17:01", "dia": "2026-10-21"}, {"id": "r08", "nombre": "SCM Carola", "hora": "17:11", "dia": "2026-10-21"}, {"id": "r09", "nombre": "Capstone Copper — Santo Domingo", "hora": "17:21", "dia": "2026-10-21"}, {"id": "r10", "nombre": "Capstone Copper — Mantoverde", "hora": "17:31", "dia": "2026-10-21"}, {"id": "r11", "nombre": "Minera Altair", "hora": "17:41", "dia": "2026-10-21"}, {"id": "r12", "nombre": "Lundin Mining — Candelaria", "hora": "17:51", "dia": "2026-10-21"}]}
 
 _DOM = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "<dominio>")
 print("=" * 60, flush=True)
@@ -554,7 +554,7 @@ async def mcp(token: str, req: Request):
                 res = {"protocolVersion": params.get("protocolVersion", "2025-06-18"),
                        "capabilities": {"tools": {"listChanged": False}},
                        "serverInfo": {"name": "Wherex Grabadora", "version": "1.0.0"},
-                       "instructions": "Grabaciones de la feria FOREDE de Wherex por empresa, con transcripción."}
+                       "instructions": "Grabaciones de la feria minera de Wherex por empresa, con transcripción."}
             elif method == "ping":
                 res = {}
             elif method == "tools/list":
@@ -593,7 +593,7 @@ def mcp_delete(token: str):
 
 
 ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#191D38"/><circle cx="32" cy="32" r="16" fill="#E0515A"/></svg>'
-MANIFEST = '{"name":"Grabadora · Feria FOREDE · Wherex","short_name":"Grabadora","start_url":"/","display":"standalone","background_color":"#191D38","theme_color":"#191D38","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}'
+MANIFEST = '{"name":"Grabadora de feria · Wherex","short_name":"Grabadora","start_url":"/","display":"standalone","background_color":"#191D38","theme_color":"#191D38","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}'
 SW_JS = "// Permite abrir la app sin señal. Las páginas se piden siempre a la red primero.\nconst C = 'wx-grab-v2';\nself.addEventListener('install', e => { e.waitUntil(caches.open(C).then(c => c.addAll(['/', '/icon.svg', '/manifest.webmanifest'])).catch(() => {})); self.skipWaiting(); });\nself.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== C).map(k => caches.delete(k)))).then(() => self.clients.claim())); });\nself.addEventListener('fetch', e => {\n  const u = new URL(e.request.url);\n  if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/') || u.pathname.startsWith('/mcp/')) return;\n  if (e.request.mode === 'navigate') { e.respondWith(fetch(e.request).catch(() => caches.match('/'))); return; }\n  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));\n});\n"
 
 
