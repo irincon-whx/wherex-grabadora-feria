@@ -9,11 +9,7 @@
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
 <link rel="manifest" href="/manifest.webmanifest">
-<title>Grabadora · Feria FOREDE · Wherex</title>
-<meta name="description" content="Registro y grabación de reuniones de Wherex en la Feria FOREDE, 21 y 22 de octubre de 2026.">
-<meta property="og:title" content="Grabadora · Feria FOREDE · Wherex">
-<meta property="og:description" content="Registro y grabación de reuniones de Wherex en la Feria FOREDE, 21 y 22 de octubre de 2026.">
-<meta property="og:type" content="website">
+<title>Grabadora de feria · Wherex</title>
 <style>
 :root{--bg:#191D38;--card:#232746;--line:#33395E;--t:#FFFFFF;--b:#D2E3F1;--m:#8FA6BE;--a:#00A0D0;--g:#00B89A;--r:#E0515A;--ok:#7BC47A}
 *{box-sizing:border-box}
@@ -293,7 +289,7 @@ function render(){
   const a = document.activeElement; if(a && (a.id === 'nota' || (a.dataset && a.dataset.keep)) && !render.force){ render.pending = true; return; } render.force = false;
   const app = $('#app');
   if(!S.auth){
-    app.innerHTML = `<div class="login"><p class="k">Wherex · Feria FOREDE</p><h1>Grabadora</h1><p class="msg" style="margin-top:16px">Abre la grabadora desde tu enlace personal (el botón Grabar del artifact o el ícono en tu pantalla de inicio). Ese enlace trae la llave de acceso, no necesitas clave.</p></div>`;
+    app.innerHTML = `<div class="login"><p class="k">Wherex · Feria minera</p><h1>Grabadora</h1><p class="msg" style="margin-top:16px">Abre la grabadora desde tu enlace personal (el botón Grabar del artifact o el ícono en tu pantalla de inicio). Ese enlace trae la llave de acceso, no necesitas clave.</p></div>`;
     return;
   }
   const emp = S.empresas.find(e => e.id === S.empresa);
@@ -301,7 +297,7 @@ function render(){
   const pendHere = S.pend.filter(p => p.empresa_id === S.empresa);
   const recHere = rec && rec.empresa_id === S.empresa;
   app.innerHTML = `<div class="wrap">
-    <div class="top"><div><p class="k">${esc(S.evento || 'Feria FOREDE')}</p><h1>Grabadora</h1></div><span id="net">${netHtml()}</span></div>
+    <div class="top"><div><p class="k">${esc(S.evento || 'Feria minera')}</p><h1>Grabadora</h1></div><span id="net">${netHtml()}</span></div>
     ${S.recover ? `<div class="banner"><span style="flex:1;min-width:180px">Quedó una grabación interrumpida (${fmt(S.recover.ms / 1000)}).</span><button class="btn small" id="rok">Recuperarla</button><button class="lnk red" id="rno">Descartar</button></div>` : ''}
     <div class="card">
       <label class="l" for="emp">Empresa</label>
